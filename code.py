@@ -6,9 +6,9 @@ import time
 
 app = Flask(__name__)
 
-# Replace these with valid API keys from WAQI and OpenWeatherMap
-WAQI_TOKEN = "35e692ca0b6ee561d13029088333b798a0418a8b"  # Replace with your WAQI token
-OWM_KEY = "35e692ca0b6ee561d13029088333b798a0418a8b"    # Replace with your OpenWeatherMap key
+
+WAQI_TOKEN = "35e692ca0b6ee561d13029088333b798a0418a8b" 
+OWM_KEY = "35e692ca0b6ee561d13029088333b798a0418a8b"   
 
 CACHE = {"data": [], "timestamp": 0}
 CACHE_EXPIRY = 600
@@ -16,7 +16,7 @@ WORLD_BOUNDS = [-90, -180, 90, 180]
 
 @app.route("/")
 def home():
-    print("Rendering home page at", time.strftime("%H:%M:%S"))  # Debug print
+    print("Rendering home page at", time.strftime("%H:%M:%S"))  
     html = """
     <!DOCTYPE html>
     <html>
@@ -45,14 +45,14 @@ def home():
     <body>
         <h1>QuantumFlux Global AQI Heatmap</h1>
         <div id="search-bar">
-            <input type="text" id="city" placeholder="Enter city (e.g., Dubai or London,uk)">
+            <input type="text" id="city" placeholder="Enter city (e.g., Dubai,ae or London,uk)">
             <button onclick="searchCity()">Check AQI & Weather</button>
         </div>
         <div id="map"></div>
 
         <script>
             const map = L.map('map').setView([20, 0], 2);
-            const tileURL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'; // Forced to day tiles for testing
+            const tileURL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'; // Forced to day tiles
             L.tileLayer(tileURL, { maxZoom: 19, attribution: 'Map data &copy; Esri, OpenStreetMap contributors' }).addTo(map);
 
             let heatLayer;
@@ -148,7 +148,7 @@ def home():
                     const data = await res.json();
                     console.log("Search data received:", data);
                     if(!data || !data.lat || !data.lon) {
-                        alert("City not found or data unavailable");
+                        alert("City not found or data unavailable. Try format like 'City,CountryCode' (e.g., 'London,uk').");
                         return;
                     }
 
@@ -202,13 +202,13 @@ def home():
 
 @app.route("/stations")
 def stations():
-    print("Processing /stations request at", time.strftime("%H:%M:%S"))  # Debug print
+    print("Processing /stations request at", time.strftime("%H:%M:%S"))  
     if time.time() - CACHE["timestamp"] < CACHE_EXPIRY:
         print("Returning cached data")
         return jsonify(CACHE["data"])
     try:
         url = f"https://api.waqi.info/map/bounds/?token={WAQI_TOKEN}&latlng={WORLD_BOUNDS[0]},{WORLD_BOUNDS[1]},{WORLD_BOUNDS[2]},{WORLD_BOUNDS[3]}"
-        print("Fetching data from:", url)  # Debug print
+        print("Fetching data from:", url) 
         r = requests.get(url, timeout=10).json()
         if r.get("status") != "ok":
             print("WAQI API returned status:", r.get("status"))
@@ -235,11 +235,11 @@ def stations():
 
 @app.route("/pm25")
 def get_pm25():
-    print("Processing /pm25 request at", time.strftime("%H:%M:%S"))  # Debug print
+    print("Processing /pm25 request at", time.strftime("%H:%M:%S"))  
     city = request.args.get("city", "Mussafah")
     waqi_url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
     try:
-        print("Fetching PM25 data from:", waqi_url)  # Debug print
+        print("Fetching PM25 data from:", waqi_url) 
         r = requests.get(waqi_url, timeout=10).json()
     except Exception as e:
         print("Error fetching WAQI data:", e)
@@ -247,7 +247,7 @@ def get_pm25():
 
     if r.get("status") != "ok":
         print("WAQI status error:", r.get("data") or "WAQI error")
-        return jsonify({"error": r.get("data") or "WAQI error"}), 400
+        return jsonify({"error": r.get("data") or f"No data for {city}"}), 400
 
     data = r.get("data", {})
     iaqi = data.get("iaqi", {})
@@ -255,6 +255,9 @@ def get_pm25():
     lat = None; lon = None
     if isinstance(city_info.get("geo"), list) and len(city_info.get("geo")) >= 2:
         lat = city_info.get("geo")[0]; lon = city_info.get("geo")[1]
+    else:
+        print("No geo data for", city)
+        return jsonify({"error": f"No location data for {city}"}), 400
 
     aqi = data.get("aqi")
     pm25 = iaqi.get("pm25", {}).get("v") if isinstance(iaqi.get("pm25"), dict) else None
@@ -304,8 +307,8 @@ def get_pm25():
         "lat": lat,
         "lon": lon
     }
-    print("Returning PM25 data:", result)  # Debug print
+    print("Returning PM25 data:", result)  
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5002)  # Using port 5002 to avoid conflicts
+    app.run(debug=False, port=5002)  
