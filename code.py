@@ -1,3 +1,5 @@
+#make sure to type "pip install Flask requests" in terminal
+
 from flask import Flask, render_template_string, jsonify, request
 import requests
 import time
